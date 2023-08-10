@@ -32,9 +32,16 @@ class HDFS(Results):
         visited = dict.fromkeys([self.bam.source])
         stack = [(v for _, v in self.bam.edges(self.bam.source))]
         good_nodes = [set(v for _, v in self.bam.edges(self.bam.source))]
+        #print(stack)
         while stack:
             children = stack[-1]
+            #print("stacklen" , len(stack))
+            #print("stack" , stack)
+            #print("children", children)
+            #print("visited", visited)
+            #print("good_nodes", good_nodes)
             child = next(children, None)
+            #print("child", child)
             if child is None:
                 stack.pop()
                 good_nodes.pop()
@@ -47,12 +54,17 @@ class HDFS(Results):
                         yield list(visited)
                     else:
                         yield list(visited) + [child]
+                #print("add child to visited" , child)
                 visited[child] = None
                 if target not in visited:
+                    #print("target not in visited")
                     good_children = set(v for _, v in self.bam.edges(child))
                     good_nodes += [good_children.intersection(good_nodes[-1])]
+                    #print("add good_children", good_children)
+                    #print("add good_nodes", good_nodes)
                     stack.append((v for _, v in self.bam.edges(child) if v in good_nodes[-1]))
                 else:
+                    #print("target in visited")
                     visited.popitem()
             else:  # len(visited) == cutoff:
                 if trim:

@@ -33,6 +33,91 @@ fn load_vec_file(file_path: &str) -> Vec<f64> {
         .collect();
     return numbers
 }
+fn edges(matrix : &Vec<Vec<bool>>, ii :usize) ->  Vec<usize> {
+    let mut ret = matrix[ii].iter().enumerate().filter(|(i,b)| **b && *i > ii).map(|(i,b)| i).collect::<Vec<_>>();
+    ret.push(matrix.len());
+    ret
+}
+
+fn _no_rec(matrix : &Vec<Vec<bool>>,i:usize) -> Vec<Vec<usize>> {
+    let mut rets = vec![];
+    let target = matrix.len();
+    let cutoff = matrix.len() + 1;
+    let mut visited = vec![i];
+    let mut stack : Vec<Vec<usize>> = vec![edges(matrix,i)];
+    let mut good_nodes : Vec<Vec<usize>> = vec![edges(matrix,i)];
+    let mut iters = 0;
+    while stack.len()> 0 {
+        //iters += 1;
+        //if iters > 5 {
+        //    break
+        //}
+
+        //println!("stacklen {:?}",stack.len());
+        //println!("stack {:?}",stack);
+        let mut children : &mut Vec<usize> = stack.last_mut().unwrap();
+        
+        //println!("visited {:?}",visited);
+        //println!("good_nodes {:?}",good_nodes);
+        if children.len() ==0 {
+            // if child exists/is not none
+            stack.pop();
+            good_nodes.pop();
+            visited.pop();
+        }
+        else {
+            let child = children.remove(0);
+            //println!("child {:?}",child);
+            if visited.len()< cutoff {
+                // if child in visited
+                if visited.contains(&child) {
+                    continue
+                }
+                // if child is target
+                if child == target {
+                    // yield visited
+                    let mut tmp = visited.clone();
+                    tmp.push(child);
+                    rets.push(tmp);
+                }
+                // add child to visited
+                visited.push(child);
+                //println!("add child to visited {:?} ",child);
+                //if target not in visited
+                if !visited.contains(&target) {
+                    //println!("target not in visited");
+                    let good_children : Vec<usize> = edges(matrix,child);
+                    //println!("good_children {:?}",good_children);
+                    //matrix[child].iter().enumerate().filter(|(i,b)| **b).map(|(i,b)| i).collect::<Vec<_>>();
+                    // intersection of good_children and good_nodes
+                    let inter = good_children.into_iter().filter(|x| good_nodes.len()>0 && good_nodes.last().unwrap().contains(x)).collect::<Vec<_>>();
+                    //if inter.len() != 0 {
+                        good_nodes.push(inter);
+                    //}
+                    // append inter to stack
+                    //println!("adding good_ndoes to stack {:?} ",good_nodes);
+                    stack.push(good_nodes.last().unwrap().clone());
+                }
+                else {
+                    //println!("target in visited");
+                    // popitem from hashmap visited
+                    visited.pop();
+                    //println!("popitem from hashmap visited {:?} ",visited);
+                }
+            } else {
+                // yield visited
+                let mut tmp = visited.clone();
+                tmp.push(child);
+                rets.push(tmp);
+                // popitem from hashmap visited
+                stack.pop();
+                good_nodes.pop();
+                visited.pop();
+            }
+        }
+    }
+    return rets
+}
 
 
 fn _rec(matrix : &Vec<Vec<bool>>,i:usize, check : &Vec<usize>) -> Vec<Vec<usize>> {
@@ -43,12 +128,12 @@ fn _rec(matrix : &Vec<Vec<bool>>,i:usize, check : &Vec<usize>) -> Vec<Vec<usize>
             let recs : Vec<Vec<usize>> = _rec(matrix,*j,&track);
             if recs.len() > 0 {
                 for p in recs {
-                    let mut tmp = vec![*j];
+                    let mut tmp = vec![i];
                     tmp.extend(p);
                     rets.push(tmp);
                 }
             } else {
-                rets.push(vec![*j]);
+                rets.push(vec![i,*j]);
             }
             track.push(*j)
         }
@@ -61,15 +146,7 @@ pub fn rec(matrix : &Vec<Vec<bool>>) -> Vec<Vec<usize>> {
     for i in 0..matrix.len() {
         let vec : Vec<usize> = (i+1..matrix.len()).collect::<Vec<_>>().into_iter().rev().collect();
         let recs : Vec<Vec<usize>>= _rec(matrix,i,&vec);
-        if recs.len() > 0 {
-            for p in recs {
-                let mut tmp = vec![i];
-                tmp.extend(p);
-                rets.push(tmp);
-            }
-        } else {
-            rets.push(vec![i]);
-        }
+        rets.extend(recs);
     }
     return rets
 }
@@ -77,23 +154,27 @@ pub fn rec(matrix : &Vec<Vec<bool>>) -> Vec<Vec<usize>> {
 pub fn rec_par(matrix : &Vec<Vec<bool>>) -> Vec<Vec<usize>> {
     let vecit : Vec<usize> = (0..matrix.len()).collect::<Vec<_>>();
     let rets : Vec<Vec<usize>> = vecit.par_iter().map(|i| {
-        let mut rets = vec![];
         let vec : Vec<usize> = (*i+1..matrix.len()).collect::<Vec<_>>().into_iter().rev().collect();
         let recs : Vec<Vec<usize>>= _rec(matrix,*i,&vec);
-        if recs.len() > 0 {
-            for p in recs {
-                let mut tmp = vec![*i];
-                tmp.extend(p);
-                rets.push(tmp);
-            }
-        } else {
-            rets.push(vec![*i]);
-        }
-        rets
+        recs
     }).flatten().collect();
     return rets
 }
 
+pub fn no_rec_par(matrix : &Vec<Vec<bool>>) -> Vec<Vec<usize>> {
+    let vecit : Vec<usize> = (0..matrix.len()).collect::<Vec<_>>();
+    vecit.par_iter().map(|i| {
+        _no_rec(matrix,*i)
+    }).flatten().collect()
+}
+
+
+fn no_rec_py(_py: Python) -> PyResult<Vec<Vec<usize>>> {
+    let weights = load_vec_file("weights.csv");
+    let mat = load_mat_file("pseudo.csv");
+    let out = no_rec_par(&mat);
+    Ok(out)
+}
 
 fn rec_py(_py: Python) -> PyResult<Vec<Vec<usize>>> {
     let weights = load_vec_file("weights.csv");
@@ -122,6 +203,7 @@ fn load_mat_file_py(_py: Python, val: &str) -> PyResult<Vec<Vec<bool>>> {
 
 py_module_initializer!(rustypathfinder, |py, m | {
     m.add(py, "__doc__", "This module is implemented in Rust")?;
+    m.add(py, "no_rec", py_fn!(py, no_rec_py()))?;
     m.add(py, "rec", py_fn!(py, rec_py()))?;
     m.add(py, "rec_par", py_fn!(py, rec_par_py()))?;
     m.add(py, "load_vec_file", py_fn!(py, load_vec_file_py(val: &str)))?;
