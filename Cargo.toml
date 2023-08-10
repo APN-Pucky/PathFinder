@@ -12,3 +12,6 @@ crate-type = ["dylib"]
 [dependencies.cpython]
 version = "0.7"
 features = ["extension-module"]
+
+[dependencies]
+rayon = "*"

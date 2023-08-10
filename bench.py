@@ -3,7 +3,7 @@ import numpy as np
 import pathfinder as pf
 import rustypathfinder as rpf
 
-N =  200                                                                         # Matrix size
+N =  300                                                                         # Matrix size
 p = 0.5   
 
 seed = 0
@@ -81,6 +81,14 @@ def get_weighted_path_rust(matrix=pseudo, weights=weights):
     return [np.unique(paths[mask[i]]) for i in range(len(mask))],weightsum[mask]
 
 
+def get_weighted_path_rayon(matrix=pseudo, weights=weights):
+    paths = rpf.rec_par()
+    weightsum = np.array([sum([weights[i] for i in path]) for path in paths])
+    mask = np.argsort(weightsum)
+    # return sorted paths
+    return [np.unique(paths[mask[i]]) for i in range(len(mask))],weightsum[mask]
+
+
 
 def get_pseudo():
 
@@ -108,14 +116,17 @@ def whdfs():
     hdfs = pf.HDFS(bam, top=5, ignore_subset=True)
     hdfs.find_paths(verbose=True)
 
-def test_hdfs(benchmark):
-    benchmark(hdfs)
-
-def test_whdfs(benchmark):
-    benchmark(whdfs)
+#def test_hdfs(benchmark):
+#    benchmark(hdfs)
+#
+#def test_whdfs(benchmark):
+#    benchmark(whdfs)
 
 #def test_path_numpy(benchmark):
 #    benchmark(path_numpy, pseudo)
 
-def test_rusty(benchmark):
-    benchmark(rpf.rec)
+#def test_rusty(benchmark):
+#    benchmark(rpf.rec)
+
+def test_rayon(benchmark):
+    benchmark(rpf.rec_par)
